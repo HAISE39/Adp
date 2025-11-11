@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Admin Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.css">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap");
+    
+    :root {
+      --white-color: hsl(0,0%,100%);
+      --black-color: hsl(0, 0% , 0%);
+      --body-font: "Poppins", sans-serif; 
+      --h1-font-size: 1.75rem;
+      --normal-font-size: 1rem;
+      --small-font-size: .813rem;
+      --font-medium: 500; 
+    }
+
+    * {
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+    }
+
+    body, input, button {
+      font-size: var(--normal-font-size);
+      font-family: var(--body-font);
+    }
+
+    body {
+      color: var(--white-color);
+      background: #1a1a1a;
+    }
+
+    input, button {
+      border: none;
+      outline: none;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .login {
+      position: relative;
+      height: 100vh;
+      display: grid;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login__img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: -1;
+    }
+
+    .login__form {
+      position: relative;
+      background-color: hsla(0, 0%, 10%, 0.3);
+      border: 2px solid var(--white-color);
+      margin-inline: 1.5rem;
+      padding: 2.5rem 1.5rem;
+      border-radius: 1rem;
+      backdrop-filter: blur(16px);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login__title {
+      text-align: center;
+      font-size: var(--h1-font-size);
+      font-weight: var(--font-medium);
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .login__content, .login__box {
+      display: grid;
+    }
+
+    .login__content {
+      row-gap: 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .login__box {
+      grid-template-columns: max-content 1fr;
+      align-items: center;
+      column-gap: 0.75rem;
+      border-bottom: 2px solid var(--white-color);
+      padding-bottom: 0.5rem;
+    }
+
+    .login__icon, .login__eye {
+      font-size: 1.25rem;
+      color: var(--white-color);
+    }
+
+    .login__input {
+      width: 100%;
+      padding-block: 0.8rem;
+      background: none;
+      color: var(--white-color);
+      position: relative;
+      z-index: 1;
+      font-size: 1rem;
+    }
+
+    .login__input::placeholder {
+      color: transparent;
+    }
+
+    .login__box-input {
+      position: relative;
+      width: 100%;
+    }
+
+    .login__label {
+      position: absolute;
+      left: 0;
+      top: 13px;
+      font-weight: var(--font-medium);
+      transition: top 0.3s, font-size 0.3s;
+      color: var(--white-color);
+      pointer-events: none;
+    }
+
+    .login__eye {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      cursor: pointer;
+      background: none;
+    }
+
+    .login__box:nth-child(2) input {
+      padding-right: 2rem;
+    }
+
+    .login__check, .login__check-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .login__check {
+      margin-bottom: 1.5rem;
+    }
+
+    .login__check-label, .login__forgot, .login__register {
+      font-size: var(--small-font-size);
+    }
+
+    .login__check-group {
+      column-gap: 0.5rem;
+    }
+
+    .login__check-input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--white-color);
+    }
+
+    .login__forgot {
+      color: var(--white-color);
+    }
+
+    .login__forgot:hover {
+      text-decoration: underline;
+    }
+
+    .login__button {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      background-color: var(--white-color);
+      font-weight: var(--font-medium);
+      cursor: pointer;
+      margin-bottom: 1rem;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .login__button:hover {
+      background-color: #e0e0e0;
+      transform: translateY(-2px);
+    }
+
+    .login__register {
+      text-align: center;
+      color: var(--white-color);
+    }
+
+    .login__register a {
+      color: var(--white-color);
+      font-weight: var(--font-medium);
+    }
+
+    .login__register a:hover {
+      text-decoration: underline;
+    }
+
+    /* Label animation */
+    .login__input:focus + .login__label,
+    .login__input:not(:placeholder-shown) + .login__label {
+      top: -12px;
+      font-size: var(--small-font-size);
+      color: #ccc;
+    }
+
+    /* Error message */
+    .error-message {
+      color: #ff6b6b;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    @media screen and (min-width: 576px) {
+      .login__form {
+        width: 432px;
+        padding: 4rem 3rem 3.5rem;
+        border-radius: 1.5rem;
+      }
+      
+      .login__title {
+        font-size: 2rem;
+      }
+    }
+
+    /* Loading animation */
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3498db;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login">
+    <!-- Background image -->
+    <img src="login-bg.png" alt="login image" class="login__img" onerror="this.style.display='none'">
+
+    <form class="login__form">
+      <h1 class="login__title">Admin Login</h1>
+
+      <div class="login__content">
+        <!-- Username Field -->
+        <div class="login__box">
+          <i class="ri-user-3-line login__icon"></i>
+          <div class="login__box-input">
+            <input type="text" class="login__input" id="username" placeholder=" " required>
+            <label for="username" class="login__label">Username</label>
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="login__box">
+          <i class="ri-lock-2-line login__icon"></i>
+          <div class="login__box-input">
+            <input type="password" class="login__input" id="password" placeholder=" " required>
+            <label for="password" class="login__label">Password</label>
+            <i class="ri-eye-off-line login__eye" id="login-eye"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <div class="error-message" id="error-message">
+        Invalid username or password!
+      </div>
+
+      <!-- Remember Me & Forgot Password -->
+      <div class="login__check">
+        <div class="login__check-group">
+          <input type="checkbox" class="login__check-input" id="rememberMe">
+          <label for="rememberMe" class="login__check-label">Remember me</label>
+        </div>
+        <a href="#" class="login__forgot" onclick="resetPassword()">Forgot Password?</a>
+      </div>
+
+      <!-- Login Button -->
+      <button type="submit" class="login__button" id="login-btn">
+        Login
+      </button>
+
+      <!-- Loading Indicator -->
+      <div class="loading" id="loading">
+        <div class="spinner"></div> Logging in...
+      </div>
+
+      <!-- Remove Register Section -->
+    </form>
+  </div>
+
+  <script>
+    // Password visibility toggle
+    const showHiddenPass = (loginPass, loginEye) => {
+      const input = document.getElementById(loginPass);
+      const iconEye = document.getElementById(loginEye);
+
+      if (iconEye && input) {
+        iconEye.addEventListener('click', () => {
+          if (input.type === 'password') {
+            input.type = 'text';
+            iconEye.classList.remove('ri-eye-off-line');
+            iconEye.classList.add('ri-eye-line');
+          } else {
+            input.type = 'password';
+            iconEye.classList.remove('ri-eye-line');
+            iconEye.classList.add('ri-eye-off-line');
+          }
+        });
+      }
+    };
+
+    // Initialize password toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      showHiddenPass('password', 'login-eye');
+      
+      // Check for remembered login
+      const remembered = localStorage.getItem('rememberMe') === 'true';
+      const savedUsername = localStorage.getItem('admin_username');
+      
+      if (remembered && savedUsername) {
+        document.getElementById('username').value = savedUsername;
+        document.getElementById('rememberMe').checked = true;
+      }
+      
+      // If already logged in, redirect to admin panel
+      if (localStorage.getItem('isLoggedIn') === 'true') {
+        window.location.href = 'admin-panel.html';
+      }
+    });
+
+    // Login form handler
+    document.querySelector('.login__form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+      const loginBtn = document.getElementById('login-btn');
+      const loading = document.getElementById('loading');
+      const errorMsg = document.getElementById('error-message');
+      
+      // Hardcoded credentials
+      const validUsername = 'VELLIXAO';
+      const validPassword = 'PUBGMOBILE';
+      
+      // Show loading
+      loginBtn.style.display = 'none';
+      loading.style.display = 'block';
+      errorMsg.style.display = 'none';
+      
+      // Simulate login process
+      setTimeout(() => {
+        if (username === validUsername && password === validPassword) {
+          // Save login state
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('admin_username', username);
+          
+          if (rememberMe) {
+            localStorage.setItem('rememberMe', 'true');
+          } else {
+            localStorage.removeItem('rememberMe');
+          }
+          
+          // Redirect to admin panel
+          window.location.href = 'admin-panel.html';
+        } else {
+          // Show error
+          errorMsg.style.display = 'block';
+          loginBtn.style.display = 'block';
+          loading.style.display = 'none';
+        }
+      }, 1000);
+    });
+
+    // Forgot password handler
+    function resetPassword() {
+      alert('Please contact administrator to reset your password.');
+      return false;
+    }
+
+    // Fallback if background image fails to load
+    document.addEventListener('DOMContentLoaded', function() {
+      const bgImg = document.querySelector('.login__img');
+      if (!bgImg || bgImg.naturalWidth === 0) {
+        document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+      }
+    });
+  </script>
+</body>
+</html>

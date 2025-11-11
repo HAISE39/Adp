@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --header-height: 60px;
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--primary-color);
+            color: white;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: var(--secondary-color);
+            text-align: center;
+        }
+        
+        .sidebar-menu {
+            padding: 0;
+            list-style: none;
+            margin-top: 20px;
+        }
+        
+        .sidebar-menu li {
+            padding: 0;
+        }
+        
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-menu a:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .sidebar-menu i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        
+        .header {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            background: white;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            padding: 15px 20px;
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        
+        .btn-primary {
+            background: var(--accent-color);
+            border: none;
+            padding: 8px 20px;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        /* Table */
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table th {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 15px;
+        }
+        
+        .table td {
+            padding: 12px 15px;
+            vertical-align: middle;
+        }
+        
+        /* Action buttons */
+        .btn-action {
+            padding: 4px 8px;
+            margin: 0 2px;
+            font-size: 0.8rem;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+            
+            .sidebar .menu-text {
+                display: none;
+            }
+            
+            .sidebar-header h3 {
+                display: none;
+            }
+            
+            .sidebar-menu a {
+                justify-content: center;
+            }
+            
+            .sidebar-menu i {
+                margin-right: 0;
+                font-size: 1.3rem;
+            }
+            
+            .main-content {
+                margin-left: 60px;
+            }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1a1a1a;
+                color: #fff;
+            }
+            
+            .card {
+                background-color: #2d3748;
+                color: #fff;
+            }
+            
+            .header {
+                background-color: #2d3748;
+                color: #fff;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="bi bi-github"></i> GitHub Admin</h3>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="#dashboard"><i class="bi bi-speedometer2"></i> <span class="menu-text">Dashboard</span></a></li>
+            <li><a href="#repositories"><i class="bi bi-folder"></i> <span class="menu-text">Repositories</span></a></li>
+            <li><a href="#create-repo"><i class="bi bi-plus-circle"></i> <span class="menu-text">Create Repo</span></a></li>
+            <li><a href="#upload"><i class="bi bi-cloud-upload"></i> <span class="menu-text">Upload Files</span></a></li>
+            <li><a href="#manage"><i class="bi bi-files"></i> <span class="menu-text">Manage Files</span></a></li>
+            <li><a href="#settings"><i class="bi bi-gear"></i> <span class="menu-text">Settings</span></a></li>
+            <li><a href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> <span class="menu-text">Logout</span></a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <h4 id="page-title">Dashboard</h4>
+            <div class="user-info">
+                <span id="username-display">Welcome, User!</span>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="page-section">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="stats-number" id="repo-count">0</div>
+                        <div>Repositories</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="stats-number" id="file-count">0</div>
+                        <div>Total Files</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="stats-number" id="commit-count">0</div>
+                        <div>Commits</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="stats-number" id="storage-used">0MB</div>
+                        <div>Storage Used</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            Recent Activities
+                        </div>
+                        <div class="card-body">
+                            <div id="recent-activities">
+                                <p class="text-muted">No recent activities</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Repositories Section -->
+        <div id="repositories" class="page-section" style="display: none;">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>My Repositories</span>
+                    <button class="btn btn-primary btn-sm" onclick="showSection('create-repo')">
+                        <i class="bi bi-plus"></i> New Repository
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Last Updated</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="repo-list">
+                                <!-- Repositories will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Repository Section -->
+        <div id="create-repo" class="page-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    Create New Repository
+                </div>
+                <div class="card-body">
+                    <form id="create-repo-form">
+                        <div class="mb-3">
+                            <label for="repo-name" class="form-label">Repository Name</label>
+                            <input type="text" class="form-control" id="repo-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="repo-desc" class="form-label">Description</label>
+                            <textarea class="form-control" id="repo-desc" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="repo-private">
+                            <label class="form-check-label" for="repo-private">Private Repository</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Repository</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Files Section -->
+        <div id="upload" class="page-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    Upload Files
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="repo-select" class="form-label">Select Repository</label>
+                        <select class="form-control" id="repo-select">
+                            <option value="">Loading repositories...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="file-upload" class="form-label">Choose Files</label>
+                        <input type="file" class="form-control" id="file-upload" multiple>
+                    </div>
+                    <div class="mb-3">
+                        <label for="upload-path" class="form-label">Upload Path (optional)</label>
+                        <input type="text" class="form-control" id="upload-path" placeholder="folder/subfolder">
+                    </div>
+                    <div class="mb-3">
+                        <label for="commit-message" class="form-label">Commit Message</label>
+                        <input type="text" class="form-control" id="commit-message" value="Add files via Admin Panel">
+                    </div>
+                    <button class="btn btn-primary" onclick="uploadFiles()">Upload Files</button>
+                    
+                    <!-- ZIP Upload -->
+                    <hr>
+                    <h6>Upload ZIP Archive</h6>
+                    <div class="mb-3">
+                        <label for="zip-upload" class="form-label">ZIP File</label>
+                        <input type="file" class="form-control" id="zip-upload" accept=".zip">
+                    </div>
+                    <div class="mb-3">
+                        <label for="extract-path" class="form-label">Extract to Path (optional)</label>
+                        <input type="text" class="form-control" id="extract-path" placeholder="target/folder">
+                    </div>
+                    <button class="btn btn-info" onclick="uploadAndExtractZip()">Extract ZIP to Repository</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Management Section -->
+        <div id="manage" class="page-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    File Management
+                </div>
+                <div class="card-body">
+                    <div id="file-explorer">
+                        <!-- File explorer will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div id="settings" class="page-section" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    Settings
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="github-token" class="form-label">GitHub Personal Access Token</label>
+                        <input type="password" class="form-control" id="github-token" placeholder="Enter your GitHub token">
+                        <small class="form-text text-muted">This token is stored locally in your browser</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="github-username" class="form-label">GitHub Username</label>
+                        <input type="text" class="form-control" id="github-username" placeholder="Your GitHub username">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                    <button class="btn btn-secondary" onclick="clearSettings()">Clear Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="admin-panel.js"></script>
+</body>
+</html>
