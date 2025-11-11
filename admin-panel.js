@@ -1,7 +1,7 @@
 // GitHub Admin Panel - Debug Version
 class GitHubAdminPanel {
     constructor() {
-        this.token = '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';
+        this.token = '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';
         this.username = 'HAISE39';
         this.baseURL = 'https://api.github.com';
         this.headers = {
