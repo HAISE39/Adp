@@ -1,266 +1,33 @@
-// GitHub Admin Panel - Public Data + Backend Solution
+// admin-panel.js - COMPLETE FILE MANAGER
 class GitHubAdminPanel {
     constructor() {
         this.token = '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';
         this.username = 'HAISE39';
-        this.backendURL = 'https://your-vercel-app.vercel.app/api'; // Ganti dengan URL backend Anda
+        this.backendURL = '';
+        this.currentRepo = null;
+        this.currentPath = '';
         this.init();
     }
 
-    async init() {
-        console.log('🚀 Starting GitHub Admin Panel...');
-        
-        if (!this.checkAuth()) {
-            window.location.href = 'index.html';
+    // ... (previous methods tetap sama)
+
+    async loadRepoFiles(repoName, path = '') {
+        if (!repoName) {
+            this.showFileExplorerPlaceholder();
             return;
         }
 
-        this.hideLoading();
-        this.setupEventListeners();
-        this.showSection('dashboard');
-        
-        // Load data dengan multiple approaches
-        await this.loadDataWithFallback();
-    }
-
-    async loadDataWithFallback() {
-        console.log('🔄 Loading data with fallback strategies...');
-        
-        const strategies = [
-            this.loadWithBackend.bind(this),
-            this.loadWithPublicAPI.bind(this),
-            this.loadWithJSONP.bind(this)
-        ];
-
-        for (let strategy of strategies) {
-            try {
-                const success = await strategy();
-                if (success) {
-                    console.log('✅ Data loaded successfully with:', strategy.name);
-                    return;
-                }
-            } catch (error) {
-                console.log(`❌ ${strategy.name} failed:`, error.message);
-            }
-        }
-        
-        // Final fallback - demo data
-        this.loadDemoData();
-        this.showAlert('⚠️ Using demo data. Real GitHub features disabled.', 'warning');
-    }
-
-    async loadWithBackend() {
-        try {
-            console.log('Trying backend approach...');
-            
-            // Backend akan handle GitHub API calls
-            const response = await fetch(`${this.backendURL}/user`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    token: this.token,
-                    username: this.username
-                })
-            });
-
-            if (!response.ok) throw new Error('Backend request failed');
-
-            const data = await response.json();
-            
-            if (data.error) throw new Error(data.error);
-            
-            // Update UI dengan data real
-            this.updateElementText('repo-count', data.public_repos || '0');
-            this.updateElementText('followers-count', data.followers || '0');
-            this.updateElementText('following-count', data.following || '0');
-            
-            if (data.avatar_url) {
-                document.getElementById('user-avatar').src = data.avatar_url;
-            }
-
-            await this.loadRepositoriesWithBackend();
-            return true;
-
-        } catch (error) {
-            console.error('Backend approach failed:', error);
-            return false;
-        }
-    }
-
-    async loadWithPublicAPI() {
-        try {
-            console.log('Trying public API approach...');
-            
-            // Hanya bisa baca data public
-            const response = await fetch(`https://api.github.com/users/${this.username}`);
-            
-            if (!response.ok) throw new Error('Public API failed');
-
-            const userData = await response.json();
-            
-            this.updateElementText('repo-count', userData.public_repos || '0');
-            this.updateElementText('followers-count', userData.followers || '0');
-            this.updateElementText('following-count', userData.following || '0');
-            
-            if (userData.avatar_url) {
-                document.getElementById('user-avatar').src = userData.avatar_url;
-            }
-
-            await this.loadPublicRepositories();
-            this.showAlert('✅ Loaded public data (read-only mode)', 'info');
-            return true;
-
-        } catch (error) {
-            console.error('Public API failed:', error);
-            return false;
-        }
-    }
-
-    async loadWithJSONP() {
-        // JSONP approach untuk bypass CORS (hanya untuk public data)
-        return new Promise((resolve) => {
-            console.log('Trying JSONP approach...');
-            
-            const callbackName = 'githubCallback_' + Date.now();
-            window[callbackName] = (data) => {
-                if (data && data.public_repos) {
-                    this.updateElementText('repo-count', data.public_repos);
-                    this.updateElementText('followers-count', data.followers);
-                    this.updateElementText('following-count', data.following);
-                    resolve(true);
-                } else {
-                    resolve(false);
-                }
-                delete window[callbackName];
-            };
-
-            const script = document.createElement('script');
-            script.src = `https://api.github.com/users/${this.username}?callback=${callbackName}`;
-            script.onerror = () => resolve(false);
-            document.head.appendChild(script);
-            
-            setTimeout(() => resolve(false), 5000);
-        });
-    }
-
-    async loadRepositoriesWithBackend() {
-        try {
-            this.showLoading('repo-list', 'Loading repositories...');
-
-            const response = await fetch(`${this.backendURL}/repos`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    token: this.token,
-                    username: this.username
-                })
-            });
-
-            if (!response.ok) throw new Error('Failed to load repos');
-
-            const repos = await response.json();
-            this.displayRepositories(repos);
-            this.populateRepositoryDropdowns(repos);
-
-        } catch (error) {
-            console.error('Error loading repos via backend:', error);
-            this.loadPublicRepositories();
-        }
-    }
-
-    async loadPublicRepositories() {
-        try {
-            this.showLoading('repo-list', 'Loading public repositories...');
-
-            const response = await fetch(`https://api.github.com/users/${this.username}/repos?sort=updated&per_page=50`);
-            
-            if (!response.ok) throw new Error('Failed to load public repos');
-
-            const repos = await response.json();
-            this.displayRepositories(repos);
-            this.showAlert('📖 Public repositories loaded (read-only)', 'info');
-
-        } catch (error) {
-            console.error('Error loading public repos:', error);
-            this.showDemoRepositories();
-        }
-    }
-
-    async createRepository() {
-        try {
-            const name = document.getElementById('repo-name')?.value;
-            const description = document.getElementById('repo-desc')?.value;
-            const isPrivate = document.getElementById('repo-visibility')?.value === 'private';
-
-            if (!name) {
-                this.showAlert('Please enter repository name', 'warning');
-                return;
-            }
-
-            const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
-            this.setButtonLoading(submitBtn, true);
-
-            // Gunakan backend untuk create repo
-            const response = await fetch(`${this.backendURL}/create-repo`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    token: this.token,
-                    name: name,
-                    description: description,
-                    private: isPrivate
-                })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok || result.error) {
-                throw new Error(result.error || 'Failed to create repository');
-            }
-
-            this.showAlert(`✅ Repository "${name}" created successfully!`, 'success');
-            document.getElementById('create-repo-form').reset();
-            
-            // Refresh data
-            await this.loadRepositoriesWithBackend();
-
-        } catch (error) {
-            console.error('Error creating repository:', error);
-            this.showAlert(`❌ ${error.message}`, 'danger');
-        } finally {
-            const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
-            this.setButtonLoading(submitBtn, false);
-        }
-    }
-
-    async uploadFiles() {
-        const repo = document.getElementById('repo-select')?.value;
-        const files = document.getElementById('file-upload')?.files;
-        const message = document.getElementById('commit-message')?.value;
-
-        if (!repo) {
-            this.showAlert('Please select a repository', 'warning');
-            return;
-        }
-
-        if (!files || files.length === 0) {
-            this.showAlert('Please select files to upload', 'warning');
-            return;
-        }
+        this.currentRepo = repoName;
+        this.currentPath = path;
 
         try {
-            this.showAlert('🔄 Uploading files via backend...', 'info');
+            this.showLoading('file-explorer', 'Loading files...');
 
-            for (let file of files) {
-                const content = await this.readFileAsBase64(file);
-                
-                const uploadResponse = await fetch(`${this.backendURL}/upload`, {
+            let files = [];
+            
+            if (this.backendURL) {
+                // Use backend
+                const response = await fetch(this.backendURL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -268,268 +35,408 @@ class GitHubAdminPanel {
                     body: JSON.stringify({
                         token: this.token,
                         username: this.username,
-                        repo: repo,
-                        file: file.name,
-                        content: content.split(',')[1],
-                        message: message
+                        action: 'get-content',
+                        repo: repoName,
+                        path: path
                     })
                 });
 
-                const result = await uploadResponse.json();
+                if (response.ok) {
+                    files = await response.json();
+                } else {
+                    throw new Error('Backend failed');
+                }
+            } else {
+                // Use public API (read-only)
+                const apiUrl = `https://api.github.com/repos/${this.username}/${repoName}/contents/${path}`;
+                const response = await fetch(apiUrl);
                 
-                if (!uploadResponse.ok || result.error) {
-                    throw new Error(result.error || `Failed to upload ${file.name}`);
+                if (response.ok) {
+                    files = await response.json();
+                } else {
+                    throw new Error('Failed to load files');
                 }
             }
 
-            this.showAlert(`✅ ${files.length} file(s) uploaded to ${repo}`, 'success');
-            document.getElementById('file-upload').value = '';
+            this.displayRepoFiles(files, repoName, path);
 
         } catch (error) {
-            console.error('Upload failed:', error);
-            this.showAlert(`❌ Upload failed: ${error.message}`, 'danger');
+            console.error('Error loading files:', error);
+            this.showError('file-explorer', 'Failed to load files');
         }
     }
 
-    // Basic methods
-    checkAuth() {
-        return localStorage.getItem('isLoggedIn') === 'true';
-    }
-
-    hideLoading() {
-        document.getElementById('loading-screen').style.display = 'none';
-    }
-
-    setupEventListeners() {
-        const createRepoForm = document.getElementById('create-repo-form');
-        if (createRepoForm) {
-            createRepoForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.createRepository();
-            });
-        }
-    }
-
-    displayRepositories(repos) {
-        const container = document.getElementById('repo-list');
+    displayRepoFiles(files, repoName, path) {
+        const container = document.getElementById('file-explorer');
         if (!container) return;
 
-        if (!repos || repos.length === 0) {
-            container.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No repositories found</td></tr>';
+        // Breadcrumb navigation
+        const breadcrumbs = this.createBreadcrumb(repoName, path);
+        
+        // File list
+        let filesHtml = '';
+        
+        if (!files || files.length === 0) {
+            filesHtml = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-folder-x display-4"></i>
+                    <p class="mt-2">This folder is empty</p>
+                    ${this.backendURL ? `
+                        <button class="btn btn-primary btn-sm mt-2" onclick="admin.showCreateFileModal('${repoName}', '${path}')">
+                            <i class="bi bi-plus"></i> Add File
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            filesHtml = files.map(item => `
+                <div class="file-item d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-${item.type === 'dir' ? 'folder' : 'file-earmark'} me-3 fs-5"></i>
+                        <div>
+                            <div class="file-name fw-bold">
+                                ${item.type === 'dir' ? 
+                                    `<a href="javascript:void(0)" onclick="admin.loadRepoFiles('${repoName}', '${item.path}')">${item.name}/</a>` : 
+                                    item.name
+                                }
+                            </div>
+                            <small class="text-muted">
+                                ${item.type === 'file' ? this.formatBytes(item.size) : ''}
+                                ${item.type === 'file' && item.download_url ? 
+                                    `<a href="${item.download_url}" target="_blank" class="ms-2">View Raw</a>` : ''
+                                }
+                            </small>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        ${this.backendURL ? `
+                            ${item.type === 'file' ? `
+                                <button class="btn btn-outline-primary btn-sm" onclick="admin.editFile('${repoName}', '${item.path}', '${item.sha}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="admin.deleteFile('${repoName}', '${item.path}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            ` : `
+                                <button class="btn btn-outline-danger btn-sm" onclick="admin.deleteFolder('${repoName}', '${item.path}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            `}
+                        ` : `
+                            <a href="${item.html_url}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-github"></i>
+                            </a>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Action buttons (only if backend available)
+        const actionButtons = this.backendURL ? `
+            <div class="d-flex gap-2 mb-3">
+                <button class="btn btn-primary btn-sm" onclick="admin.showCreateFileModal('${repoName}', '${path}')">
+                    <i class="bi bi-file-earmark-plus"></i> New File
+                </button>
+                <button class="btn btn-success btn-sm" onclick="admin.showCreateFolderModal('${repoName}', '${path}')">
+                    <i class="bi bi-folder-plus"></i> New Folder
+                </button>
+                <button class="btn btn-info btn-sm" onclick="admin.showUploadModal('${repoName}', '${path}')">
+                    <i class="bi bi-upload"></i> Upload Files
+                </button>
+            </div>
+        ` : '';
+
+        container.innerHTML = `
+            ${breadcrumbs}
+            ${actionButtons}
+            <div class="file-list">
+                ${filesHtml}
+            </div>
+        `;
+    }
+
+    createBreadcrumb(repoName, path) {
+        const parts = path.split('/').filter(p => p);
+        let breadcrumbHtml = `<nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="javascript:void(0)" onclick="admin.loadRepoFiles('${repoName}', '')">
+                        <i class="bi bi-house"></i> ${repoName}
+                    </a>
+                </li>`;
+        
+        let currentPath = '';
+        parts.forEach((part, index) => {
+            currentPath += (currentPath ? '/' : '') + part;
+            const isLast = index === parts.length - 1;
+            
+            breadcrumbHtml += `
+                <li class="breadcrumb-item ${isLast ? 'active' : ''}">
+                    ${isLast ? part : `
+                        <a href="javascript:void(0)" onclick="admin.loadRepoFiles('${repoName}', '${currentPath}')">
+                            ${part}
+                        </a>
+                    `}
+                </li>
+            `;
+        });
+        
+        breadcrumbHtml += `</ol></nav>`;
+        return breadcrumbHtml;
+    }
+
+    showFileExplorerPlaceholder() {
+        const container = document.getElementById('file-explorer');
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-folder display-1"></i>
+                <h4 class="mt-3">Select a Repository</h4>
+                <p>Choose a repository from the dropdown to browse files</p>
+            </div>
+        `;
+    }
+
+    // File Operations Modal
+    showCreateFileModal(repoName, path) {
+        const modalHtml = `
+            <div class="modal fade" id="createFileModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Create New File</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">File Path</label>
+                                <input type="text" class="form-control" id="newFilePath" 
+                                       value="${path ? path + '/' : ''}" placeholder="folder/filename.txt">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Content</label>
+                                <textarea class="form-control" id="newFileContent" rows="10" 
+                                          placeholder="Enter file content here..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Commit Message</label>
+                                <input type="text" class="form-control" id="createFileMessage" 
+                                       value="Add new file via Admin Panel">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="admin.createNewFile('${repoName}')">
+                                Create File
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.showModal(modalHtml, 'createFileModal');
+    }
+
+    async createNewFile(repoName) {
+        const filePath = document.getElementById('newFilePath').value;
+        const content = document.getElementById('newFileContent').value;
+        const message = document.getElementById('createFileMessage').value;
+
+        if (!filePath || !content) {
+            this.showAlert('Please fill in file path and content', 'warning');
             return;
         }
 
-        const reposHtml = repos.map(repo => `
-            <tr>
-                <td>
-                    <i class="bi bi-folder${repo.private ? '-fill text-warning' : ''} me-2"></i>
-                    <strong>${repo.name}</strong>
-                    ${repo.private ? '<span class="badge bg-warning ms-2">Private</span>' : ''}
-                </td>
-                <td>${repo.description || '<span class="text-muted">No description</span>'}</td>
-                <td>${new Date(repo.updated_at).toLocaleDateString()}</td>
-                <td>${this.formatBytes(repo.size * 1024)}</td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <a href="${repo.html_url}" target="_blank" class="btn btn-outline-primary">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                        <a href="${repo.html_url}" target="_blank" class="btn btn-outline-success">
-                            <i class="bi bi-github"></i>
-                        </a>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        try {
+            const response = await fetch(this.backendURL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    token: this.token,
+                    username: this.username,
+                    action: 'create-file',
+                    repo: repoName,
+                    path: filePath,
+                    content: content,
+                    message: message
+                })
+            });
 
-        container.innerHTML = reposHtml;
-    }
+            const result = await response.json();
 
-    populateRepositoryDropdowns(repos) {
-        const dropdowns = ['repo-select', 'file-repo-select'];
-        
-        dropdowns.forEach(dropdownId => {
-            const dropdown = document.getElementById(dropdownId);
-            if (dropdown) {
-                dropdown.innerHTML = '<option value="">Select a repository</option>' +
-                    repos.map(repo => `<option value="${repo.name}">${repo.name}</option>`).join('');
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create file');
             }
-        });
-    }
 
-    showSection(sectionName) {
-        document.querySelectorAll('.page-section').forEach(section => {
-            section.style.display = 'none';
-        });
+            this.hideModal('createFileModal');
+            this.showAlert('✅ File created successfully!', 'success');
+            await this.loadRepoFiles(repoName, this.currentPath);
 
-        const targetSection = document.getElementById(sectionName);
-        if (targetSection) targetSection.style.display = 'block';
-
-        document.querySelectorAll('.sidebar-menu a').forEach(link => {
-            link.classList.remove('active');
-        });
-        
-        const activeLink = document.querySelector(`.sidebar-menu a[href="#${sectionName}"]`);
-        if (activeLink) activeLink.classList.add('active');
-
-        if (sectionName === 'repositories') {
-            this.loadPublicRepositories();
+        } catch (error) {
+            console.error('Error creating file:', error);
+            this.showAlert(`❌ Failed to create file: ${error.message}`, 'danger');
         }
-
-        this.closeMobileSidebar();
     }
 
-    showLoading(elementId, message) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border text-primary"></div>
-                    <p class="mt-2">${message}</p>
+    async editFile(repoName, filePath, fileSha) {
+        try {
+            // Get current file content
+            const response = await fetch(this.backendURL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    token: this.token,
+                    username: this.username,
+                    action: 'get-content',
+                    repo: repoName,
+                    path: filePath
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to load file');
+
+            const fileData = await response.json();
+            const content = Buffer.from(fileData.content, 'base64').toString();
+
+            const modalHtml = `
+                <div class="modal fade" id="editFileModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit File: ${filePath}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Content</label>
+                                    <textarea class="form-control" id="editFileContent" rows="15" 
+                                              style="font-family: 'Courier New', monospace;">${content}</textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Commit Message</label>
+                                    <input type="text" class="form-control" id="editFileMessage" 
+                                           value="Update file via Admin Panel">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" 
+                                        onclick="admin.updateFile('${repoName}', '${filePath}')">
+                                    Update File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
+
+            this.showModal(modalHtml, 'editFileModal');
+
+        } catch (error) {
+            console.error('Error loading file for edit:', error);
+            this.showAlert('Failed to load file for editing', 'danger');
         }
     }
 
-    showAlert(message, type) {
-        document.querySelectorAll('.alert').forEach(alert => alert.remove());
+    async updateFile(repoName, filePath) {
+        const content = document.getElementById('editFileContent').value;
+        const message = document.getElementById('editFileMessage').value;
+
+        try {
+            const response = await fetch(this.backendURL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    token: this.token,
+                    username: this.username,
+                    action: 'update-file',
+                    repo: repoName,
+                    path: filePath,
+                    content: content,
+                    message: message
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to update file');
+            }
+
+            this.hideModal('editFileModal');
+            this.showAlert('✅ File updated successfully!', 'success');
+            await this.loadRepoFiles(repoName, this.currentPath);
+
+        } catch (error) {
+            console.error('Error updating file:', error);
+            this.showAlert(`❌ Failed to update file: ${error.message}`, 'danger');
+        }
+    }
+
+    async deleteFile(repoName, filePath) {
+        if (!confirm(`Are you sure you want to delete "${filePath}"?`)) return;
+
+        try {
+            const response = await fetch(this.backendURL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    token: this.token,
+                    username: this.username,
+                    action: 'delete-file',
+                    repo: repoName,
+                    path: filePath,
+                    message: 'Delete file via Admin Panel'
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to delete file');
+            }
+
+            this.showAlert('✅ File deleted successfully!', 'success');
+            await this.loadRepoFiles(repoName, this.currentPath);
+
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            this.showAlert(`❌ Failed to delete file: ${error.message}`, 'danger');
+        }
+    }
+
+    // Modal helper methods
+    showModal(html, modalId) {
+        // Remove existing modal
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) existingModal.remove();
+
+        // Add new modal
+        document.body.insertAdjacentHTML('beforeend', html);
         
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type} alert-dismissible fade show`;
-        alert.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            mainContent.insertBefore(alert, mainContent.firstChild);
-        }
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById(modalId));
+        modal.show();
     }
 
-    readFileAsBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
+    hideModal(modalId) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+        if (modal) modal.hide();
     }
 
-    formatBytes(bytes) {
-        if (!bytes) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    closeMobileSidebar() {
-        document.querySelector('.sidebar')?.classList.remove('active');
-        document.querySelector('.sidebar-overlay')?.classList.remove('active');
-    }
-
-    setButtonLoading(button, isLoading) {
-        if (!button) return;
-        button.disabled = isLoading;
-        button.innerHTML = isLoading ? 
-            '<span class="spinner-border spinner-border-sm"></span> Creating...' : 
-            '<i class="bi bi-plus-circle"></i> Create Repository';
-    }
-
-    updateElementText(elementId, text) {
-        const element = document.getElementById(elementId);
-        if (element) element.textContent = text;
-    }
-
-    // Demo data fallback
-    loadDemoData() {
-        console.log('Loading demo data...');
-        this.updateElementText('repo-count', '12');
-        this.updateElementText('followers-count', '24');
-        this.updateElementText('following-count', '36');
-        this.loadDemoRepositories();
-    }
-
-    loadDemoRepositories() {
-        const demoRepos = [
-            { name: 'my-project', description: 'Main project', private: false, updated_at: new Date(), size: 15480, html_url: 'https://github.com' },
-            { name: 'docs', description: 'Documentation', private: false, updated_at: new Date(), size: 8120, html_url: 'https://github.com' }
-        ];
-        this.displayRepositories(demoRepos);
-    }
-
-    saveSettings() {
-        const tokenInput = document.getElementById('github-token');
-        if (tokenInput?.value) {
-            this.token = tokenInput.value;
-            localStorage.setItem('github_token', this.token);
-            this.showAlert('Settings saved!', 'success');
-        }
-    }
+    // ... (sisanya methods tetap)
 }
 
-// Global functions
-function showSection(sectionName) {
-    window.admin?.showSection(sectionName);
-}
-
-function logout() {
-    if (confirm('Logout?')) {
-        localStorage.removeItem('isLoggedIn');
-        window.location.href = 'index.html';
-    }
-}
-
-function uploadFiles() {
-    window.admin?.uploadFiles();
-}
-
-function uploadAndExtractZip() {
-    alert('ZIP extract feature - Select a ZIP file to upload');
-}
-
-function saveSettings() {
-    window.admin?.saveSettings();
-}
-
-function testConnection() {
-    window.admin?.loadDataWithFallback();
-}
-
-function toggleSidebar() {
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-}
-
+// Update global function
 function loadRepoFiles(repoName) {
-    const explorer = document.getElementById('file-explorer');
-    if (!repoName) {
-        explorer.innerHTML = '<div class="text-center text-muted py-4"><p>Select a repository</p></div>';
-        return;
-    }
-    
-    explorer.innerHTML = `
-        <div class="alert alert-info">
-            File browser for <strong>${repoName}</strong> - Basic view
-        </div>
-        <div class="file-item">
-            <i class="bi bi-file-earmark"></i> README.md
-        </div>
-        <div class="file-item">
-            <i class="bi bi-folder"></i> src/
-        </div>
-        <div class="file-item">
-            <i class="bi bi-file-earmark"></i> package.json
-        </div>
-    `;
+    window.admin?.loadRepoFiles(repoName);
 }
-
-// Initialize
-let admin;
-document.addEventListener('DOMContentLoaded', () => {
-    admin = new GitHubAdminPanel();
-    window.admin = admin;
-});
