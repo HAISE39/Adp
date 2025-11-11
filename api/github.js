@@ -1,75 +1,153 @@
-// api/github.js - Backend untuk handle GitHub API
+// api/github.js - COMPLETE VERSION
 export default async function handler(req, res) {
-  // Set CORS headers
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { token, username, action, ...data } = req.body;
 
     if (!token) {
-      return res.status(400).json({ error: 'Token required' });
+      return res.status(400).json({ error: 'GitHub token required' });
     }
 
-    let githubResponse;
     const headers = {
       'Authorization': `token ${token}`,
       'Accept': 'application/vnd.github.v3+json',
       'User-Agent': 'GitHub-Admin-Panel'
     };
 
+    let githubUrl, options = { headers };
+
     switch (action) {
       case 'get-user':
-        githubResponse = await fetch('https://api.github.com/user', { headers });
+        githubUrl = 'https://api.github.com/user';
         break;
       
       case 'get-repos':
-        githubResponse = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`, { headers });
+        githubUrl = `https://api.github.com/users/${username || 'HAISE39'}/repos?sort=updated&per_page=100`;
         break;
       
       case 'create-repo':
-        githubResponse = await fetch('https://api.github.com/user/repos', {
-          method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: data.name,
-            description: data.description,
-            private: data.private,
-            auto_init: true
-          })
+        githubUrl = 'https://api.github.com/user/repos';
+        options.method = 'POST';
+        options.headers = { ...headers, 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({
+          name: data.name,
+          description: data.description,
+          private: data.private || false,
+          auto_init: true
         });
         break;
-      
+
+      case 'get-content':
+        githubUrl = `https://api.github.com/repos/${username}/${data.repo}/contents/${data.path || ''}`;
+        break;
+
+      case 'create-file':
+        githubUrl = `https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}`;
+        options.method = 'PUT';
+        options.headers = { ...headers, 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({
+          message: data.message || 'Create file via Admin Panel',
+          content: Buffer.from(data.content).toString('base64')
+        });
+        break;
+
+      case 'update-file':
+        // Get file SHA first
+        const shaResponse = await fetch(`https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}`, {
+          headers: headers
+        });
+        
+        if (!shaResponse.ok) {
+          return res.status(shaResponse.status).json({ error: 'File not found' });
+        }
+        
+        const fileInfo = await shaResponse.json();
+        githubUrl = `https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}`;
+        options.method = 'PUT';
+        options.headers = { ...headers, 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({
+          message: data.message || 'Update file via Admin Panel',
+          content: Buffer.from(data.content).toString('base64'),
+          sha: fileInfo.sha
+        });
+        break;
+
+      case 'delete-file':
+        // Get file SHA first
+        const deleteShaResponse = await fetch(`https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}`, {
+          headers: headers
+        });
+        
+        if (!deleteShaResponse.ok) {
+          return res.status(deleteShaResponse.status).json({ error: 'File not found' });
+        }
+        
+        const deleteFileInfo = await deleteShaResponse.json();
+        githubUrl = `https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}`;
+        options.method = 'DELETE';
+        options.headers = { ...headers, 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({
+          message: data.message || 'Delete file via Admin Panel',
+          sha: deleteFileInfo.sha
+        });
+        break;
+
       case 'upload-file':
-        githubResponse = await fetch(`https://api.github.com/repos/${username}/${data.repo}/contents/${data.file}`, {
-          method: 'PUT',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: data.message,
-            content: data.content
-          })
+        githubUrl = `https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}`;
+        options.method = 'PUT';
+        options.headers = { ...headers, 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({
+          message: data.message || 'Upload file via Admin Panel',
+          content: data.content
         });
         break;
-      
+
+      case 'create-folder':
+        // Create folder by creating a placeholder file
+        githubUrl = `https://api.github.com/repos/${username}/${data.repo}/contents/${data.path}/.gitkeep`;
+        options.method = 'PUT';
+        options.headers = { ...headers, 'Content-Type': 'application/json' };
+        options.body = JSON.stringify({
+          message: data.message || 'Create folder via Admin Panel',
+          content: Buffer.from('# Folder placeholder').toString('base64')
+        });
+        break;
+
       default:
         return res.status(400).json({ error: 'Invalid action' });
     }
 
-    const result = await githubResponse.json();
+    console.log('GitHub API Call:', action, githubUrl);
     
-    if (!githubResponse.ok) {
-      return res.status(githubResponse.status).json({ error: result.message || 'GitHub API error' });
+    const response = await fetch(githubUrl, options);
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({ 
+        error: result.message || `GitHub API error: ${response.status}`,
+        details: result
+      });
     }
 
     res.status(200).json(result);
 
   } catch (error) {
     console.error('Backend error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
   }
 }
