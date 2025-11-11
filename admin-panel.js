@@ -1,8 +1,8 @@
 // Admin Panel JavaScript
 class GitHubAdminPanel {
     constructor() {
-        this.token = localStorage.getItem('github_token');
-        this.username = localStorage.getItem('github_username');
+        this.token = localStorage.getItem('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');
+        this.username = localStorage.getItem('HAISE39');
         this.currentRepo = null;
         this.init();
     }
