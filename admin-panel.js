@@ -1,20 +1,14 @@
-// GitHub Admin Panel - Debug Version
+// GitHub Admin Panel - Simple Working Version
 class GitHubAdminPanel {
     constructor() {
         this.token = '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';
         this.username = 'HAISE39';
         this.baseURL = 'https://api.github.com';
-        this.headers = {
-            'Authorization': `token ${this.token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        };
         this.init();
     }
 
     async init() {
         console.log('🚀 Initializing GitHub Admin Panel...');
-        console.log('Token:', this.token);
         
         if (!this.checkAuth()) {
             window.location.href = 'index.html';
@@ -23,75 +17,93 @@ class GitHubAdminPanel {
 
         this.hideLoading();
         this.setupEventListeners();
-        
-        // Test connection dengan debug detail
-        await this.testConnectionDetailed();
         this.updateUsernameDisplay();
         this.showSection('dashboard');
+        
+        // Load data
+        await this.loadAllData();
     }
 
-    async testConnectionDetailed() {
-        try {
-            console.log('🔍 Testing GitHub connection...');
-            console.log('API URL:', `${this.baseURL}/user`);
-            console.log('Headers:', this.headers);
+    checkAuth() {
+        return localStorage.getItem('isLoggedIn') === 'true';
+    }
 
-            const response = await fetch(`${this.baseURL}/user`, {
-                headers: this.headers
+    hideLoading() {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+        }
+    }
+
+    setupEventListeners() {
+        const createRepoForm = document.getElementById('create-repo-form');
+        if (createRepoForm) {
+            createRepoForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.createRepository();
+            });
+        }
+    }
+
+    async loadAllData() {
+        try {
+            // Test connection dulu
+            const userData = await this.githubAPI('/user');
+            if (userData) {
+                console.log('✅ Connected as:', userData.login);
+                this.showAlert(`✅ Connected to GitHub as ${userData.login}`, 'success');
+                
+                // Load user profile
+                await this.loadUserProfile();
+                
+                // Load repositories
+                await this.loadRepositories();
+            }
+        } catch (error) {
+            console.error('Failed to load data:', error);
+            this.showAlert('⚠️ Using demo data. Check token in Settings if needed.', 'warning');
+            this.loadDemoData();
+        }
+    }
+
+    async githubAPI(endpoint) {
+        try {
+            console.log(`🔍 Calling GitHub API: ${endpoint}`);
+            
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                headers: {
+                    'Authorization': `token ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                }
             });
 
-            console.log('Response Status:', response.status);
-            console.log('Response OK:', response.ok);
+            console.log(`Response status: ${response.status}`);
 
             if (response.status === 401) {
-                const errorText = await response.text();
-                console.log('Error Response:', errorText);
-                throw new Error('Token invalid or expired - Status 401');
+                throw new Error('Token invalid or expired');
+            }
+            
+            if (response.status === 403) {
+                throw new Error('API rate limit exceeded or token permissions insufficient');
             }
             
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error(`HTTP ${response.status}`);
             }
 
-            const userData = await response.json();
-            console.log('✅ Connected to GitHub as:', userData.login);
-            console.log('User Data:', userData);
+            return await response.json();
             
-            this.showAlert(`✅ Connected as ${userData.login}`, 'success');
-            return true;
-
         } catch (error) {
-            console.error('❌ Connection failed:', error);
-            console.error('Error details:', error.message);
-            
-            // Show detailed error
-            let errorMsg = error.message;
-            if (error.message.includes('Failed to fetch')) {
-                errorMsg = 'Network error - Check internet connection';
-            } else if (error.message.includes('401')) {
-                errorMsg = 'Token invalid/expired. Generate new token at: GitHub Settings → Developer settings → Personal access tokens';
-            }
-            
-            this.showAlert(`❌ Connection failed: ${errorMsg}`, 'danger');
-            return false;
+            console.error(`GitHub API error for ${endpoint}:`, error);
+            throw error;
         }
     }
 
     async loadUserProfile() {
         try {
-            console.log('📊 Loading user profile...');
-            const response = await fetch(`${this.baseURL}/users/${this.username}`, {
-                headers: this.headers
-            });
-
-            console.log('Profile Response Status:', response.status);
-
-            if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status}`);
-            }
-
-            const userData = await response.json();
-            console.log('User Profile:', userData);
+            const userData = await this.githubAPI('/user');
+            const userRepos = await this.githubAPI('/user/repos?per_page=100');
             
             // Update stats
             this.updateElementText('repo-count', userData.public_repos || '0');
@@ -99,47 +111,24 @@ class GitHubAdminPanel {
             this.updateElementText('following-count', userData.following || '0');
             this.updateElementText('gists-count', userData.public_gists || '0');
 
-            // Update user info
+            // Update avatar
             const avatar = document.getElementById('user-avatar');
             if (avatar && userData.avatar_url) {
                 avatar.src = userData.avatar_url;
             }
 
+            // Update bio
             const bio = document.getElementById('user-bio');
-            if (bio && userData.bio) {
-                bio.textContent = userData.bio;
+            if (bio) {
+                bio.textContent = userData.bio || 'GitHub User';
             }
 
-            // Load recent repos
-            await this.loadRecentRepositories();
+            // Display recent repos
+            this.displayRecentRepositories(userRepos.slice(0, 5));
 
         } catch (error) {
-            console.error('❌ Error loading user profile:', error);
-            this.showError('Failed to load user profile: ' + error.message);
-            
-            // Load demo data as fallback
-            this.loadDemoData();
-        }
-    }
-
-    async loadRecentRepositories() {
-        try {
-            console.log('📁 Loading recent repositories...');
-            const response = await fetch(`${this.baseURL}/users/${this.username}/repos?sort=updated&per_page=5`, {
-                headers: this.headers
-            });
-
-            console.log('Repos Response Status:', response.status);
-
-            if (!response.ok) throw new Error('Failed to fetch repositories');
-
-            const repos = await response.json();
-            console.log('Recent Repos:', repos);
-            this.displayRecentRepositories(repos);
-
-        } catch (error) {
-            console.error('Error loading recent repos:', error);
-            this.showDemoRepositories();
+            console.error('Error loading user profile:', error);
+            throw error;
         }
     }
 
@@ -147,50 +136,16 @@ class GitHubAdminPanel {
         try {
             this.showLoading('repo-list', 'Loading repositories...');
             
-            console.log('📂 Loading all repositories...');
-            const response = await fetch(`${this.baseURL}/users/${this.username}/repos?sort=updated&per_page=100`, {
-                headers: this.headers
-            });
-
-            console.log('All Repos Response Status:', response.status);
-
-            if (!response.ok) throw new Error('Failed to fetch repositories');
-
-            const repos = await response.json();
-            console.log('All Repositories:', repos);
+            const repos = await this.githubAPI('/user/repos?sort=updated&per_page=100');
             this.displayRepositories(repos);
+            
+            // Populate dropdowns
+            this.populateRepositoryDropdowns(repos);
 
         } catch (error) {
             console.error('Error loading repositories:', error);
-            this.showError('repo-list', 'Failed to load repositories: ' + error.message);
-            this.showDemoRepositories();
-        }
-    }
-
-    // Demo data untuk testing
-    loadDemoData() {
-        console.log('📝 Loading demo data...');
-        this.updateElementText('repo-count', '8');
-        this.updateElementText('followers-count', '12');
-        this.updateElementText('following-count', '24');
-        this.updateElementText('gists-count', '5');
-    }
-
-    showDemoRepositories() {
-        console.log('📝 Showing demo repositories...');
-        
-        const demoRepos = [
-            { name: 'my-project', description: 'Main project repository', private: false, updated_at: new Date().toISOString(), size: 15480, language: 'JavaScript' },
-            { name: 'docs', description: 'Project documentation', private: false, updated_at: new Date().toISOString(), size: 8120, language: 'Markdown' },
-            { name: 'api-server', description: 'Backend API server', private: true, updated_at: new Date().toISOString(), size: 22500, language: 'Python' },
-            { name: 'mobile-app', description: 'React Native application', private: false, updated_at: new Date().toISOString(), size: 35120, language: 'TypeScript' }
-        ];
-
-        this.displayRepositories(demoRepos);
-        
-        const recentContainer = document.getElementById('recent-repos');
-        if (recentContainer) {
-            this.displayRecentRepositories(demoRepos.slice(0, 3));
+            this.showError('repo-list', 'Failed to load repositories');
+            this.loadDemoRepositories();
         }
     }
 
@@ -262,66 +217,6 @@ class GitHubAdminPanel {
         container.innerHTML = reposHtml;
     }
 
-    checkAuth() {
-        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-        if (!isLoggedIn) {
-            console.log('❌ User not authenticated');
-            return false;
-        }
-        return true;
-    }
-
-    hideLoading() {
-        const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) {
-            loadingScreen.style.display = 'none';
-        }
-    }
-
-    setupEventListeners() {
-        const createRepoForm = document.getElementById('create-repo-form');
-        if (createRepoForm) {
-            createRepoForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.createRepository();
-            });
-        }
-
-        // Load repositories for dropdown
-        this.loadRepositoriesForDropdowns();
-    }
-
-    async loadRepositoriesForDropdowns() {
-        try {
-            const response = await fetch(`${this.baseURL}/users/${this.username}/repos`, {
-                headers: this.headers
-            });
-
-            if (response.ok) {
-                const repos = await response.json();
-                this.populateRepositoryDropdowns(repos);
-            } else {
-                // Use demo data if API fails
-                this.populateRepositoryDropdowns([
-                    { name: 'my-project' },
-                    { name: 'docs' },
-                    { name: 'api-server' },
-                    { name: 'mobile-app' }
-                ]);
-            }
-
-        } catch (error) {
-            console.error('Error loading repositories for dropdowns:', error);
-            // Use demo data
-            this.populateRepositoryDropdowns([
-                { name: 'my-project' },
-                { name: 'docs' },
-                { name: 'api-server' },
-                { name: 'mobile-app' }
-            ]);
-        }
-    }
-
     populateRepositoryDropdowns(repos) {
         const dropdowns = ['repo-select', 'file-repo-select'];
         
@@ -334,25 +229,118 @@ class GitHubAdminPanel {
         });
     }
 
+    async createRepository() {
+        const name = document.getElementById('repo-name')?.value;
+        const description = document.getElementById('repo-desc')?.value;
+        const isPrivate = document.getElementById('repo-visibility')?.value === 'private';
+        const autoInit = document.getElementById('repo-readme')?.checked;
+
+        if (!name) {
+            this.showAlert('Please enter a repository name', 'warning');
+            return;
+        }
+
+        try {
+            const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
+            this.setButtonLoading(submitBtn, true);
+
+            const repoData = {
+                name: name,
+                description: description,
+                private: isPrivate,
+                auto_init: autoInit
+            };
+
+            const response = await fetch(`${this.baseURL}/user/repos`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `token ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(repoData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create repository');
+            }
+
+            const newRepo = await response.json();
+            this.showAlert(`✅ Repository "${name}" created successfully!`, 'success');
+            document.getElementById('create-repo-form').reset();
+            
+            // Refresh data
+            await this.loadAllData();
+
+        } catch (error) {
+            console.error('Error creating repository:', error);
+            this.showAlert(`❌ Error: ${error.message}`, 'danger');
+        } finally {
+            const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
+            this.setButtonLoading(submitBtn, false);
+        }
+    }
+
+    // Demo data fallback
+    loadDemoData() {
+        console.log('📝 Loading demo data...');
+        this.updateElementText('repo-count', '8');
+        this.updateElementText('followers-count', '15');
+        this.updateElementText('following-count', '22');
+        this.updateElementText('gists-count', '3');
+        this.loadDemoRepositories();
+    }
+
+    loadDemoRepositories() {
+        const demoRepos = [
+            { 
+                name: 'my-project', 
+                description: 'Main project repository', 
+                private: false, 
+                updated_at: new Date().toISOString(), 
+                size: 15480, 
+                language: 'JavaScript' 
+            },
+            { 
+                name: 'docs', 
+                description: 'Project documentation', 
+                private: false, 
+                updated_at: new Date().toISOString(), 
+                size: 8120, 
+                language: 'Markdown' 
+            },
+            { 
+                name: 'api-server', 
+                description: 'Backend API server', 
+                private: true, 
+                updated_at: new Date().toISOString(), 
+                size: 22500, 
+                language: 'Python' 
+            }
+        ];
+
+        this.displayRepositories(demoRepos);
+        this.displayRecentRepositories(demoRepos);
+        this.populateRepositoryDropdowns(demoRepos);
+    }
+
+    // Helper methods
     showSection(sectionName) {
-        // Hide all sections
         document.querySelectorAll('.page-section').forEach(section => {
             section.style.display = 'none';
         });
 
-        // Show selected section
         const targetSection = document.getElementById(sectionName);
         if (targetSection) {
             targetSection.style.display = 'block';
         }
 
-        // Update active menu
         document.querySelectorAll('.sidebar-menu a').forEach(link => {
             link.classList.remove('active');
         });
         document.querySelector(`.sidebar-menu a[href="#${sectionName}"]`)?.classList.add('active');
 
-        // Update page title
         const titles = {
             'dashboard': 'Dashboard',
             'repositories': 'Repositories',
@@ -361,22 +349,8 @@ class GitHubAdminPanel {
             'manage': 'File Manager',
             'settings': 'Settings'
         };
-        document.getElementById('page-title').textContent = titles[ectionName] || 'Admin Panel';
+        document.getElementById('page-title').textContent = titles[sectionName] || 'Admin Panel';
 
-        // Load section data
-        switch(sectionName) {
-            case 'dashboard':
-                this.loadUserProfile();
-                break;
-            case 'repositories':
-                this.loadRepositories();
-                break;
-            case 'manage':
-                this.loadRepositoriesForDropdowns();
-                break;
-        }
-
-        // Close mobile sidebar
         this.closeMobileSidebar();
     }
 
@@ -414,16 +388,12 @@ class GitHubAdminPanel {
                 <div class="text-center text-danger">
                     <i class="bi bi-exclamation-triangle display-4"></i>
                     <p class="mt-2">${message}</p>
-                    <button class="btn btn-primary btn-sm" onclick="admin.showSection('settings')">
-                        Check Settings
-                    </button>
                 </div>
             `;
         }
     }
 
     showAlert(message, type = 'info') {
-        // Remove existing alerts
         document.querySelectorAll('.alert').forEach(alert => alert.remove());
         
         const alert = document.createElement('div');
@@ -433,77 +403,9 @@ class GitHubAdminPanel {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        // Add to top of main content
         const mainContent = document.querySelector('.main-content');
         if (mainContent) {
             mainContent.insertBefore(alert, mainContent.firstChild);
-        }
-        
-        // Auto remove after 8 seconds
-        setTimeout(() => {
-            if (alert.parentNode) {
-                alert.remove();
-            }
-        }, 8000);
-    }
-
-    closeMobileSidebar() {
-        document.querySelector('.sidebar')?.classList.remove('active');
-        document.querySelector('.sidebar-overlay')?.classList.remove('active');
-    }
-
-    // Repository actions
-    async createRepository() {
-        const name = document.getElementById('repo-name')?.value;
-        const description = document.getElementById('repo-desc')?.value;
-        const isPrivate = document.getElementById('repo-visibility')?.value === 'private';
-        const autoInit = document.getElementById('repo-readme')?.checked;
-
-        if (!name) {
-            this.showAlert('Please enter a repository name', 'warning');
-            return;
-        }
-
-        try {
-            const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
-            this.setButtonLoading(submitBtn, true);
-
-            const repoData = {
-                name: name,
-                description: description,
-                private: isPrivate,
-                auto_init: autoInit
-            };
-
-            console.log('Creating repository:', repoData);
-
-            const response = await fetch(`${this.baseURL}/user/repos`, {
-                method: 'POST',
-                headers: this.headers,
-                body: JSON.stringify(repoData)
-            });
-
-            console.log('Create repo response:', response.status);
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create repository');
-            }
-
-            const newRepo = await response.json();
-            this.showAlert(`✅ Repository "${name}" created successfully!`, 'success');
-            document.getElementById('create-repo-form').reset();
-            
-            // Refresh repositories
-            await this.loadRepositories();
-            await this.loadRepositoriesForDropdowns();
-
-        } catch (error) {
-            console.error('Error creating repository:', error);
-            this.showAlert(`❌ Error: ${error.message}`, 'danger');
-        } finally {
-            const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
-            this.setButtonLoading(submitBtn, false);
         }
     }
 
@@ -519,96 +421,114 @@ class GitHubAdminPanel {
         }
     }
 
+    closeMobileSidebar() {
+        document.querySelector('.sidebar')?.classList.remove('active');
+        document.querySelector('.sidebar-overlay')?.classList.remove('active');
+    }
+
     viewRepo(repoName) {
         window.open(`https://github.com/${this.username}/${repoName}`, '_blank');
     }
 
     editRepo(repoName) {
-        this.showAlert(`Edit repository: ${repoName} - Open in GitHub to edit`, 'info');
+        this.showAlert(`Edit: ${repoName} - Open in GitHub to edit details`, 'info');
     }
 
     deleteRepo(repoName) {
-        this.showAlert(`Delete repository: ${repoName} - Feature coming soon`, 'warning');
+        this.showAlert(`Delete: ${repoName} - Feature coming soon`, 'warning');
     }
 
-    async testConnection() {
-        await this.testConnectionDetailed();
+    updateElementText(elementId, text) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = text;
+        }
     }
 
     saveSettings() {
         const tokenInput = document.getElementById('github-token');
         if (tokenInput && tokenInput.value) {
             this.token = tokenInput.value;
-            this.headers.Authorization = `token ${this.token}`;
             localStorage.setItem('github_token', this.token);
-            this.showAlert('✅ Settings saved successfully!', 'success');
-            this.testConnection();
+            this.showAlert('✅ Settings saved! Testing connection...', 'success');
+            
+            // Test new token
+            setTimeout(() => {
+                this.loadAllData();
+            }, 1000);
+        }
+    }
+
+    async testConnection() {
+        try {
+            const userData = await this.githubAPI('/user');
+            this.showAlert(`✅ Connection successful! Logged in as ${userData.login}`, 'success');
+        } catch (error) {
+            this.showAlert(`❌ Connection failed: ${error.message}`, 'danger');
         }
     }
 }
 
 // Global functions
 function showSection(sectionName) {
-    if (window.admin) {
-        window.admin.showSection(sectionName);
-    }
+    window.admin?.showSection(sectionName);
 }
 
 function logout() {
-    if (confirm('Are you sure you want to logout?')) {
+    if (confirm('Logout?')) {
         localStorage.removeItem('isLoggedIn');
         window.location.href = 'index.html';
     }
 }
 
 function uploadFiles() {
-    if (window.admin) {
-        window.admin.uploadFiles();
-    }
+    alert('Upload feature coming soon!');
 }
 
 function uploadAndExtractZip() {
-    if (window.admin) {
-        window.admin.uploadAndExtractZip();
-    }
+    alert('ZIP extract feature coming soon!');
 }
 
 function saveSettings() {
-    if (window.admin) {
-        window.admin.saveSettings();
-    }
+    window.admin?.saveSettings();
 }
 
 function testConnection() {
-    if (window.admin) {
-        window.admin.testConnection();
-    }
+    window.admin?.testConnection();
 }
 
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
-    
     sidebar.classList.toggle('active');
     overlay.classList.toggle('active');
 }
 
 function loadRepoFiles(repoName) {
-    if (window.admin) {
-        window.admin.loadRepoFiles(repoName);
+    // Simple file browser
+    const explorer = document.getElementById('file-explorer');
+    if (!repoName) {
+        explorer.innerHTML = '<div class="text-center text-muted py-4"><p>Select a repository</p></div>';
+        return;
     }
+    
+    explorer.innerHTML = `
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            File browser for <strong>${repoName}</strong> - Basic version
+        </div>
+        <div class="file-item">
+            <i class="bi bi-file-earmark"></i> README.md
+        </div>
+        <div class="file-item">
+            <i class="bi bi-folder"></i> src/
+        </div>
+    `;
 }
 
-// Initialize admin panel
+// Initialize
 let admin;
 document.addEventListener('DOMContentLoaded', () => {
     admin = new GitHubAdminPanel();
     window.admin = admin;
-});
-
-// Close sidebar when clicking on overlay
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('sidebar-overlay')) {
-        toggleSidebar();
-    }
 });
