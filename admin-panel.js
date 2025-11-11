@@ -1,14 +1,13 @@
-// GitHub Admin Panel - 100% REAL API
+// Simple GitHub Admin Panel - Fixed
 class GitHubAdminPanel {
     constructor() {
         this.token = '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';
         this.username = 'HAISE39';
-        this.baseURL = 'https://api.github.com';
         this.init();
     }
 
     async init() {
-        console.log('🚀 Initializing REAL GitHub Admin Panel...');
+        console.log('Starting GitHub Admin...');
         
         if (!this.checkAuth()) {
             window.location.href = 'index.html';
@@ -17,105 +16,109 @@ class GitHubAdminPanel {
 
         this.hideLoading();
         this.setupEventListeners();
-        this.updateUsernameDisplay();
+        this.showSection('dashboard');
         
-        // Test connection first - REAL API call
-        const connected = await this.testRealConnection();
-        if (connected) {
-            this.showSection('dashboard');
-            this.showAlert('✅ Connected to REAL GitHub API', 'success');
-        } else {
-            this.showSection('settings');
-            this.showAlert('❌ Cannot connect to GitHub. Check token.', 'danger');
-        }
+        // Test connection
+        await this.testConnection();
     }
 
-    async testRealConnection() {
+    async testConnection() {
         try {
-            console.log('🔐 Testing REAL GitHub connection...');
+            console.log('Testing token...');
             
-            const response = await fetch(`${this.baseURL}/user`, {
+            // Simple fetch dengan error handling
+            const response = await fetch('https://api.github.com/user', {
+                method: 'GET',
                 headers: {
-                    'Authorization': `token ${this.token}`,
+                    'Authorization': `Bearer ${this.token}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
 
-            console.log('REAL API Response Status:', response.status);
-            
+            console.log('Status:', response.status);
+            console.log('Status Text:', response.statusText);
+
             if (response.status === 401) {
-                throw new Error('Token INVALID - Buat token baru di GitHub Settings');
+                throw new Error('TOKEN INVALID - Buat token baru di GitHub Settings > Developer settings > Personal access tokens');
             }
-            
-            if (response.status === 403) {
-                throw new Error('Rate limit exceeded - Tunggu 1 jam atau pakai token berbeda');
-            }
-            
+
             if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const userData = await response.json();
-            console.log('REAL User Data:', userData);
+            console.log('Success! User:', userData.login);
             
-            // Update UI dengan data REAL
-            this.updateElementText('repo-count', userData.public_repos);
-            this.updateElementText('followers-count', userData.followers);
-            this.updateElementText('following-count', userData.following);
-            this.updateElementText('gists-count', userData.public_gists);
-
-            // Load repositories REAL
-            await this.loadRealRepositories();
-            
-            return true;
+            this.showAlert(`✅ Connected as ${userData.login}`, 'success');
+            await this.loadUserData();
 
         } catch (error) {
-            console.error('REAL Connection FAILED:', error);
-            this.showAlert(`❌ REAL API Error: ${error.message}`, 'danger');
-            return false;
+            console.error('Connection failed:', error);
+            this.showAlert(`❌ ${error.message}`, 'danger');
         }
     }
 
-    async loadRealRepositories() {
+    async loadUserData() {
         try {
-            console.log('📂 Loading REAL repositories...');
-            this.showLoading('repo-list', 'Loading REAL repositories from GitHub...');
-            this.showLoading('recent-repos', 'Loading recent repos...');
-
-            const response = await fetch(`${this.baseURL}/users/${this.username}/repos?sort=updated&per_page=100`, {
+            // Load user info
+            const userResponse = await fetch('https://api.github.com/user', {
                 headers: {
-                    'Authorization': `token ${this.token}`,
+                    'Authorization': `Bearer ${this.token}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             });
 
-            console.log('REAL Repos Response:', response.status);
+            if (!userResponse.ok) throw new Error('Failed to load user data');
+            const userData = await userResponse.json();
 
-            if (!response.ok) {
-                throw new Error(`Failed to load repos: ${response.status}`);
+            // Update user info
+            document.getElementById('repo-count').textContent = userData.public_repos || '0';
+            document.getElementById('followers-count').textContent = userData.followers || '0';
+            document.getElementById('following-count').textContent = userData.following || '0';
+            
+            // Load avatar
+            const avatar = document.getElementById('user-avatar');
+            if (avatar && userData.avatar_url) {
+                avatar.src = userData.avatar_url;
             }
 
-            const repos = await response.json();
-            console.log('REAL Repositories:', repos);
-
-            // Tampilkan data REAL
-            this.displayRealRepositories(repos);
-            this.displayRecentRealRepositories(repos.slice(0, 5));
-            this.populateRealDropdowns(repos);
+            // Load repositories
+            await this.loadRepositories();
 
         } catch (error) {
-            console.error('Error loading REAL repos:', error);
-            this.showError('repo-list', `Gagal load repository: ${error.message}`);
-            this.showError('recent-repos', `Gagal load repository: ${error.message}`);
+            console.error('Load data error:', error);
+            this.showAlert('Failed to load data', 'warning');
         }
     }
 
-    displayRealRepositories(repos) {
+    async loadRepositories() {
+        try {
+            this.showLoading('repo-list', 'Loading repositories...');
+
+            const response = await fetch(`https://api.github.com/users/${this.username}/repos?sort=updated&per_page=100`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to load repositories');
+
+            const repos = await response.json();
+            this.displayRepositories(repos);
+
+        } catch (error) {
+            console.error('Load repos error:', error);
+            this.showError('repo-list', 'Failed to load repositories');
+        }
+    }
+
+    displayRepositories(repos) {
         const container = document.getElementById('repo-list');
         if (!container) return;
 
         if (!repos || repos.length === 0) {
-            container.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No repositories found on GitHub</td></tr>';
+            container.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No repositories found</td></tr>';
             return;
         }
 
@@ -125,23 +128,14 @@ class GitHubAdminPanel {
                     <i class="bi bi-folder${repo.private ? '-fill text-warning' : ''} me-2"></i>
                     <strong>${repo.name}</strong>
                     ${repo.private ? '<span class="badge bg-warning ms-2">Private</span>' : ''}
-                    ${repo.fork ? '<span class="badge bg-info ms-1">Fork</span>' : ''}
                 </td>
                 <td>${repo.description || '<span class="text-muted">No description</span>'}</td>
                 <td>${new Date(repo.updated_at).toLocaleDateString()}</td>
                 <td>${this.formatBytes(repo.size * 1024)}</td>
                 <td>
-                    <div class="btn-group btn-group-sm">
-                        <a href="${repo.html_url}" target="_blank" class="btn btn-outline-primary">
-                            <i class="bi bi-github"></i>
-                        </a>
-                        <button class="btn btn-outline-success" onclick="admin.viewRealRepo('${repo.name}')">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-danger" onclick="admin.deleteRealRepo('${repo.name}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
+                    <a href="${repo.html_url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View
+                    </a>
                 </td>
             </tr>
         `).join('');
@@ -149,53 +143,10 @@ class GitHubAdminPanel {
         container.innerHTML = reposHtml;
     }
 
-    displayRecentRealRepositories(repos) {
-        const container = document.getElementById('recent-repos');
-        if (!container) return;
-
-        if (!repos || repos.length === 0) {
-            container.innerHTML = '<p class="text-muted">No repositories found</p>';
-            return;
-        }
-
-        const reposHtml = repos.map(repo => `
-            <div class="file-item">
-                <div class="file-icon">
-                    <i class="bi bi-folder${repo.private ? '-fill text-warning' : ''}"></i>
-                </div>
-                <div class="file-name">
-                    <strong><a href="${repo.html_url}" target="_blank">${repo.name}</a></strong>
-                    <div class="text-muted small">${repo.description || 'No description'}</div>
-                </div>
-                <div class="file-size">
-                    ${this.formatBytes(repo.size * 1024)}
-                </div>
-                <div>
-                    <span class="badge">${repo.language || 'Code'}</span>
-                </div>
-            </div>
-        `).join('');
-
-        container.innerHTML = reposHtml;
-    }
-
-    populateRealDropdowns(repos) {
-        const dropdowns = ['repo-select', 'file-repo-select'];
-        
-        dropdowns.forEach(dropdownId => {
-            const dropdown = document.getElementById(dropdownId);
-            if (dropdown) {
-                dropdown.innerHTML = '<option value="">Select repository</option>' +
-                    repos.map(repo => `<option value="${repo.name}">${repo.name}</option>`).join('');
-            }
-        });
-    }
-
-    async createRealRepository() {
-        const name = document.getElementById('repo-name')?.value;
-        const description = document.getElementById('repo-desc')?.value;
-        const isPrivate = document.getElementById('repo-visibility')?.value === 'private';
-        const autoInit = document.getElementById('repo-readme')?.checked;
+    async createRepository() {
+        const name = document.getElementById('repo-name').value;
+        const description = document.getElementById('repo-desc').value;
+        const isPrivate = document.getElementById('repo-visibility').value === 'private';
 
         if (!name) {
             this.showAlert('Please enter repository name', 'warning');
@@ -204,28 +155,25 @@ class GitHubAdminPanel {
 
         try {
             const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
-            this.setButtonLoading(submitBtn, true);
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creating...';
 
             const repoData = {
                 name: name,
                 description: description,
                 private: isPrivate,
-                auto_init: autoInit
+                auto_init: true
             };
 
-            console.log('Creating REAL repository:', repoData);
-
-            const response = await fetch(`${this.baseURL}/user/repos`, {
+            const response = await fetch('https://api.github.com/user/repos', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `token ${this.token}`,
+                    'Authorization': `Bearer ${this.token}`,
                     'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(repoData)
             });
-
-            console.log('Create repo REAL response:', response.status);
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -233,176 +181,23 @@ class GitHubAdminPanel {
             }
 
             const newRepo = await response.json();
-            console.log('REAL Repository created:', newRepo);
-            
-            this.showAlert(`✅ REAL Repository "${name}" created on GitHub!`, 'success');
+            this.showAlert(`✅ Repository "${name}" created!`, 'success');
             document.getElementById('create-repo-form').reset();
             
-            // Refresh REAL data
-            await this.loadRealRepositories();
+            // Refresh data
+            await this.loadRepositories();
 
         } catch (error) {
-            console.error('Error creating REAL repository:', error);
-            this.showAlert(`❌ REAL Error: ${error.message}`, 'danger');
+            console.error('Create repo error:', error);
+            this.showAlert(`❌ ${error.message}`, 'danger');
         } finally {
             const submitBtn = document.querySelector('#create-repo-form button[type="submit"]');
-            this.setButtonLoading(submitBtn, false);
-        }
-    }
-
-    async uploadRealFiles() {
-        const repo = document.getElementById('repo-select')?.value;
-        const files = document.getElementById('file-upload')?.files;
-        const message = document.getElementById('commit-message')?.value;
-
-        if (!repo) {
-            this.showAlert('Pilih repository dulu', 'warning');
-            return;
-        }
-
-        if (!files || files.length === 0) {
-            this.showAlert('Pilih file yang mau diupload', 'warning');
-            return;
-        }
-
-        try {
-            this.showAlert('🔄 Uploading files to REAL GitHub...', 'info');
-
-            for (let file of files) {
-                await this.uploadFileToRealRepo(repo, file, message);
-            }
-
-            this.showAlert(`✅ ${files.length} file(s) uploaded to ${repo}`, 'success');
-            document.getElementById('file-upload').value = '';
-
-        } catch (error) {
-            console.error('Upload REAL failed:', error);
-            this.showAlert(`❌ Upload failed: ${error.message}`, 'danger');
-        }
-    }
-
-    async uploadFileToRealRepo(repo, file, message) {
-        const content = await this.readFileAsBase64(file);
-        
-        const fileData = {
-            message: message,
-            content: content.split(',')[1]
-        };
-
-        const response = await fetch(`${this.baseURL}/repos/${this.username}/${repo}/contents/${file.name}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${this.token}`,
-                'Accept': 'application/vnd.github.v3+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(fileData)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Upload failed');
-        }
-
-        return await response.json();
-    }
-
-    async loadRealRepoFiles(repoName) {
-        if (!repoName) return;
-
-        try {
-            this.showLoading('file-explorer', 'Loading REAL files from GitHub...');
-
-            const response = await fetch(`${this.baseURL}/repos/${this.username}/${repoName}/contents`, {
-                headers: {
-                    'Authorization': `token ${this.token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (!response.ok) throw new Error('Failed to load files');
-
-            const contents = await response.json();
-            this.displayRealRepoFiles(contents, repoName);
-
-        } catch (error) {
-            console.error('Error loading REAL files:', error);
-            this.showError('file-explorer', `Gagal load files: ${error.message}`);
-        }
-    }
-
-    displayRealRepoFiles(contents, repoName) {
-        const container = document.getElementById('file-explorer');
-        if (!container) return;
-
-        if (!contents || contents.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="bi bi-folder-x display-4"></i>
-                    <p class="mt-2">Repository ${repoName} is empty</p>
-                </div>
-            `;
-            return;
-        }
-
-        const filesHtml = contents.map(item => `
-            <div class="file-item">
-                <div class="file-icon">
-                    <i class="bi bi-${item.type === 'dir' ? 'folder' : 'file-earmark'}"></i>
-                </div>
-                <div class="file-name">
-                    <a href="${item.html_url}" target="_blank">${item.name}</a>
-                    ${item.type === 'dir' ? '/' : ''}
-                </div>
-                <div class="file-size">
-                    ${item.size ? this.formatBytes(item.size) : ''}
-                </div>
-                <div>
-                    <a href="${item.html_url}" target="_blank" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-github"></i>
-                    </a>
-                </div>
-            </div>
-        `).join('');
-
-        container.innerHTML = filesHtml;
-    }
-
-    async deleteRealRepo(repoName) {
-        if (!confirm(`Yakin hapus repository "${repoName}"? Ini akan dihapus PERMANEN dari GitHub!`)) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`${this.baseURL}/repos/${this.username}/${repoName}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `token ${this.token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (!response.ok) throw new Error('Failed to delete repository');
-
-            this.showAlert(`✅ Repository "${repoName}" deleted from GitHub`, 'success');
-            await this.loadRealRepositories();
-
-        } catch (error) {
-            console.error('Error deleting REAL repo:', error);
-            this.showAlert(`❌ Delete failed: ${error.message}`, 'danger');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-plus-circle"></i> Create Repository';
         }
     }
 
     // Helper methods
-    readFileAsBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
-
     checkAuth() {
         return localStorage.getItem('isLoggedIn') === 'true';
     }
@@ -416,51 +211,46 @@ class GitHubAdminPanel {
         if (createRepoForm) {
             createRepoForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.createRealRepository();
+                this.createRepository();
             });
         }
     }
 
     showSection(sectionName) {
+        // Hide all sections
         document.querySelectorAll('.page-section').forEach(section => {
             section.style.display = 'none';
         });
 
+        // Show selected section
         const targetSection = document.getElementById(sectionName);
-        if (targetSection) targetSection.style.display = 'block';
+        if (targetSection) {
+            targetSection.style.display = 'block';
+        }
 
+        // Update active menu
         document.querySelectorAll('.sidebar-menu a').forEach(link => {
             link.classList.remove('active');
         });
-        document.querySelector(`.sidebar-menu a[href="#${sectionName}"]`)?.classList.add('active');
+        document.querySelector(`.sidebar-menu a[href="#${sectionName}"]`).classList.add('active');
 
+        // Update page title
         const titles = {
-            'dashboard': 'Dashboard - REAL GitHub Data',
-            'repositories': 'Repositories - REAL GitHub',
-            'create-repo': 'Create Repository - REAL',
-            'upload': 'Upload Files - REAL GitHub',
-            'manage': 'File Manager - REAL',
+            'dashboard': 'Dashboard',
+            'repositories': 'Repositories', 
+            'create-repo': 'Create Repository',
+            'upload': 'Upload Files',
+            'manage': 'File Manager',
             'settings': 'Settings'
         };
         document.getElementById('page-title').textContent = titles[sectionName] || 'Admin Panel';
 
+        // Load section data
         if (sectionName === 'repositories') {
-            this.loadRealRepositories();
+            this.loadRepositories();
         }
-        
+
         this.closeMobileSidebar();
-    }
-
-    updateUsernameDisplay() {
-        document.getElementById('username-display').textContent = `Welcome, ${this.username}!`;
-    }
-
-    formatBytes(bytes) {
-        if (!bytes) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     showLoading(elementId, message) {
@@ -480,7 +270,7 @@ class GitHubAdminPanel {
         if (element) {
             element.innerHTML = `
                 <div class="text-center text-danger">
-                    <i class="bi bi-exclamation-triangle display-4"></i>
+                    <i class="bi bi-exclamation-triangle"></i>
                     <p class="mt-2">${message}</p>
                 </div>
             `;
@@ -488,6 +278,7 @@ class GitHubAdminPanel {
     }
 
     showAlert(message, type) {
+        // Remove existing alerts
         document.querySelectorAll('.alert').forEach(alert => alert.remove());
         
         const alert = document.createElement('div');
@@ -497,72 +288,59 @@ class GitHubAdminPanel {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        document.querySelector('.main-content')?.insertBefore(alert, document.querySelector('.main-content').firstChild);
+        document.querySelector('.main-content').insertBefore(alert, document.querySelector('.main-content').firstChild);
     }
 
-    setButtonLoading(button, isLoading) {
-        if (!button) return;
-        button.disabled = isLoading;
-        button.innerHTML = isLoading ? 
-            '<span class="spinner-border spinner-border-sm"></span> Creating...' : 
-            '<i class="bi bi-plus-circle"></i> Create Repository';
+    formatBytes(bytes) {
+        if (!bytes) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     closeMobileSidebar() {
-        document.querySelector('.sidebar')?.classList.remove('active');
-        document.querySelector('.sidebar-overlay')?.classList.remove('active');
-    }
-
-    viewRealRepo(repoName) {
-        window.open(`https://github.com/${this.username}/${repoName}`, '_blank');
-    }
-
-    updateElementText(elementId, text) {
-        const element = document.getElementById(elementId);
-        if (element) element.textContent = text;
+        document.querySelector('.sidebar').classList.remove('active');
+        document.querySelector('.sidebar-overlay').classList.remove('active');
     }
 
     saveSettings() {
         const tokenInput = document.getElementById('github-token');
-        if (tokenInput?.value) {
+        if (tokenInput.value) {
             this.token = tokenInput.value;
             localStorage.setItem('github_token', this.token);
-            this.showAlert('✅ Settings saved! Reconnecting...', 'success');
-            setTimeout(() => this.testRealConnection(), 1000);
+            this.showAlert('Settings saved! Testing connection...', 'success');
+            this.testConnection();
         }
-    }
-
-    async testConnection() {
-        await this.testRealConnection();
     }
 }
 
 // Global functions
 function showSection(sectionName) {
-    window.admin?.showSection(sectionName);
+    window.admin.showSection(sectionName);
 }
 
 function logout() {
-    if (confirm('Logout?')) {
+    if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('isLoggedIn');
         window.location.href = 'index.html';
     }
 }
 
 function uploadFiles() {
-    window.admin?.uploadRealFiles();
+    alert('Upload feature - Select files and repository first');
 }
 
 function uploadAndExtractZip() {
-    alert('ZIP extract coming soon - Upload individual files for now');
+    alert('ZIP extract feature coming soon');
 }
 
 function saveSettings() {
-    window.admin?.saveSettings();
+    window.admin.saveSettings();
 }
 
 function testConnection() {
-    window.admin?.testConnection();
+    window.admin.testConnection();
 }
 
 function toggleSidebar() {
@@ -572,11 +350,7 @@ function toggleSidebar() {
     overlay.classList.toggle('active');
 }
 
-function loadRepoFiles(repoName) {
-    window.admin?.loadRealRepoFiles(repoName);
-}
-
-// Initialize REAL admin panel
+// Initialize
 let admin;
 document.addEventListener('DOMContentLoaded', () => {
     admin = new GitHubAdminPanel();
