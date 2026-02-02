@@ -24,6 +24,7 @@ public class LuaEngine {
 
             // Expose memory scanner to Lua
             globals.set("search", new org.luaj.vm2.lib.TwoArgFunction() {
+                @Override
                 public org.luaj.vm2.LuaValue call(org.luaj.vm2.LuaValue val, org.luaj.vm2.LuaValue type) {
                     scanner.searchInt(val.checkint(), type.checkint());
                     return org.luaj.vm2.LuaValue.valueOf(scanner.getResultCount());
@@ -31,6 +32,7 @@ public class LuaEngine {
             });
 
             globals.set("write", new org.luaj.vm2.lib.ThreeArgFunction() {
+                @Override
                 public org.luaj.vm2.LuaValue call(org.luaj.vm2.LuaValue addr, org.luaj.vm2.LuaValue val, org.luaj.vm2.LuaValue type) {
                     scanner.writeInt(addr.checklong(), val.checkint(), type.checkint());
                     return org.luaj.vm2.LuaValue.NIL;

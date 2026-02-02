@@ -62,17 +62,32 @@ public class MenuView extends LinearLayout {
 
         Button btnSearch = new Button(getContext());
         btnSearch.setText("New Search");
-        btnSearch.setOnClickListener(v -> performSearch(false));
+        btnSearch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                performSearch(false);
+            }
+        });
         buttonLayout.addView(btnSearch);
 
         Button btnRefine = new Button(getContext());
         btnRefine.setText("Refine");
-        btnRefine.setOnClickListener(v -> performSearch(true));
+        btnRefine.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                performSearch(true);
+            }
+        });
         buttonLayout.addView(btnRefine);
 
         Button btnEditAll = new Button(getContext());
         btnEditAll.setText("Edit All");
-        btnEditAll.setOnClickListener(v -> editAll());
+        btnEditAll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                editAll();
+            }
+        });
         buttonLayout.addView(btnEditAll);
 
         addView(buttonLayout);
@@ -84,9 +99,12 @@ public class MenuView extends LinearLayout {
 
         Button btnHide = new Button(getContext());
         btnHide.setText("Minimize");
-        btnHide.setOnClickListener(v -> {
-            setVisibility(GONE);
-            if (onHideListener != null) onHideListener.run();
+        btnHide.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setVisibility(GONE);
+                if (onHideListener != null) onHideListener.run();
+            }
         });
         addView(btnHide);
 
@@ -111,7 +129,12 @@ public class MenuView extends LinearLayout {
 
         Button btnRunLua = new Button(getContext());
         btnRunLua.setText("Run Lua");
-        btnRunLua.setOnClickListener(v -> luaEngine.executeScript(luaInput.getText().toString()));
+        btnRunLua.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                luaEngine.executeScript(luaInput.getText().toString());
+            }
+        });
         addView(btnRunLua);
 
         ScrollView scrollView = new ScrollView(getContext());
@@ -193,10 +216,15 @@ public class MenuView extends LinearLayout {
         listLayout.removeAllViews();
         savedLayout.removeAllViews();
 
-        for (long addr : savedList) {
+        for (final long addr : savedList) {
             Button btnSaved = new Button(getContext());
             btnSaved.setText(String.format("Saved: 0x%X", addr));
-            btnSaved.setOnClickListener(v -> editValue(addr));
+            btnSaved.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    editValue(addr);
+                }
+            });
             savedLayout.addView(btnSaved);
         }
 
@@ -209,15 +237,23 @@ public class MenuView extends LinearLayout {
 
             Button btnResult = new Button(getContext());
             btnResult.setText(String.format("0x%X", addr));
-            btnResult.setOnClickListener(v -> editValue(addr));
+            btnResult.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    editValue(addr);
+                }
+            });
             item.addView(btnResult);
 
             Button btnSave = new Button(getContext());
             btnSave.setText("S");
-            btnSave.setOnClickListener(v -> {
-                if (!savedList.contains(addr)) {
-                    savedList.add(addr);
-                    updateList();
+            btnSave.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (!savedList.contains(addr)) {
+                        savedList.add(addr);
+                        updateList();
+                    }
                 }
             });
             item.addView(btnSave);

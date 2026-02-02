@@ -49,8 +49,11 @@ public class FloatingService extends Service {
 
         // Menu View
         MenuView mv = new MenuView(this);
-        mv.setOnHideListener(() -> {
-            floatingView.setVisibility(View.VISIBLE);
+        mv.setOnHideListener(new Runnable() {
+            @Override
+            public void run() {
+                floatingView.setVisibility(View.VISIBLE);
+            }
         });
         menuView = mv;
         menuView.setVisibility(View.GONE);
