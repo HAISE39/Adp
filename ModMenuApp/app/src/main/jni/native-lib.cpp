@@ -10,6 +10,10 @@
 #include <dirent.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdint>
+#include <unistd.h>
 
 #define LOG_TAG "ModMenuNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -259,6 +263,17 @@ Java_com_mod_menu_MemoryScanner_getResults(JNIEnv* env, jobject /* this */) {
     }
     return result;
 }
+
+    extern "C" JNIEXPORT void JNICALL
+    Java_com_mod_menu_MemoryScanner_refineXor(JNIEnv *env, jobject thiz, jint value, jint key) {
+        std::vector<long> new_results;
+        for (long addr : results) {
+            if (safe_read<int>(addr) == (value ^ key)) {
+                new_results.push_back(addr);
+            }
+        }
+        results = new_results;
+    }
 
 JNIEXPORT jstring JNICALL
 Java_com_mod_menu_MemoryScanner_stringFromJNI(JNIEnv* env, jobject /* this */) {

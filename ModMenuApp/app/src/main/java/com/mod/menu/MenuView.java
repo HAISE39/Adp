@@ -21,7 +21,7 @@ public class MenuView extends LinearLayout {
     private LinearLayout listLayout;
     private LinearLayout savedLayout;
     private Runnable onHideListener;
-    private ArrayList<Long> savedList = new ArrayList<>();
+    private ArrayList<Long> savedList = new ArrayList<Long>();
 
     public MenuView(Context context) {
         super(context);
@@ -52,8 +52,8 @@ public class MenuView extends LinearLayout {
         addView(inputSearch);
 
         typeSpinner = new Spinner(getContext());
-        String[] types = {"DWORD", "FLOAT", "BYTE", "WORD", "DOUBLE", "QWORD", "XOR"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_item, types);
+        String[] types = new String[]{"DWORD", "FLOAT", "BYTE", "WORD", "DOUBLE", "QWORD", "XOR"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_spinner_item, types);
         typeSpinner.setAdapter(adapter);
         addView(typeSpinner);
 
@@ -63,7 +63,6 @@ public class MenuView extends LinearLayout {
         Button btnSearch = new Button(getContext());
         btnSearch.setText("New Search");
         btnSearch.setOnClickListener(new View.OnClickListener() {
-            @Override
             public void onClick(View v) {
                 performSearch(false);
             }
@@ -73,7 +72,6 @@ public class MenuView extends LinearLayout {
         Button btnRefine = new Button(getContext());
         btnRefine.setText("Refine");
         btnRefine.setOnClickListener(new View.OnClickListener() {
-            @Override
             public void onClick(View v) {
                 performSearch(true);
             }
@@ -83,7 +81,6 @@ public class MenuView extends LinearLayout {
         Button btnEditAll = new Button(getContext());
         btnEditAll.setText("Edit All");
         btnEditAll.setOnClickListener(new View.OnClickListener() {
-            @Override
             public void onClick(View v) {
                 editAll();
             }
@@ -100,9 +97,8 @@ public class MenuView extends LinearLayout {
         Button btnHide = new Button(getContext());
         btnHide.setText("Minimize");
         btnHide.setOnClickListener(new View.OnClickListener() {
-            @Override
             public void onClick(View v) {
-                setVisibility(GONE);
+                setVisibility(View.GONE);
                 if (onHideListener != null) onHideListener.run();
             }
         });
@@ -130,7 +126,6 @@ public class MenuView extends LinearLayout {
         Button btnRunLua = new Button(getContext());
         btnRunLua.setText("Run Lua");
         btnRunLua.setOnClickListener(new View.OnClickListener() {
-            @Override
             public void onClick(View v) {
                 luaEngine.executeScript(luaInput.getText().toString());
             }
@@ -144,83 +139,104 @@ public class MenuView extends LinearLayout {
         addView(scrollView);
     }
 
-    private void performSearch(boolean refine) {
-        String valStr = inputSearch.getText().toString();
+    private void performSearch(final boolean refine) {
+        final String valStr = inputSearch.getText().toString();
         if (valStr.isEmpty()) return;
 
-        String type = typeSpinner.getSelectedItem().toString();
+        final String type = typeSpinner.getSelectedItem().toString();
+        resultText.setText("Searching...");
 
-        try {
-            if (type.equals("DWORD")) {
-                int val = Integer.parseInt(valStr);
-                if (refine) scanner.refineInt(val, 4);
-                else scanner.searchInt(val, 4);
-            } else if (type.equals("FLOAT")) {
-                float val = Float.parseFloat(valStr);
-                if (refine) scanner.refineFloat(val);
-                else scanner.searchFloat(val);
-            } else if (type.equals("BYTE")) {
-                int val = Integer.parseInt(valStr);
-                if (refine) scanner.refineInt(val, 1);
-                else scanner.searchInt(val, 1);
-            } else if (type.equals("WORD")) {
-                int val = Integer.parseInt(valStr);
-                if (refine) scanner.refineInt(val, 2);
-                else scanner.searchInt(val, 2);
-            } else if (type.equals("DOUBLE")) {
-                double val = Double.parseDouble(valStr);
-                if (refine) scanner.refineDouble(val);
-                else scanner.searchDouble(val);
-            } else if (type.equals("QWORD")) {
-                long val = Long.parseLong(valStr);
-                if (refine) scanner.refineLong(val);
-                else scanner.searchLong(val);
-            } else if (type.equals("XOR")) {
-                int val = Integer.parseInt(valStr);
-                // For simplicity, using a hardcoded key or a split input.
-                // Assuming "value:key" format
-                int key = 0;
-                if (valStr.contains(":")) {
-                    String[] parts = valStr.split(":");
-                    val = Integer.parseInt(parts[0]);
-                    key = Integer.parseInt(parts[1]);
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    if (type.equals("DWORD")) {
+                        int val = Integer.parseInt(valStr);
+                        if (refine) scanner.refineInt(val, 4);
+                        else scanner.searchInt(val, 4);
+                    } else if (type.equals("FLOAT")) {
+                        float val = Float.parseFloat(valStr);
+                        if (refine) scanner.refineFloat(val);
+                        else scanner.searchFloat(val);
+                    } else if (type.equals("BYTE")) {
+                        int val = Integer.parseInt(valStr);
+                        if (refine) scanner.refineInt(val, 1);
+                        else scanner.searchInt(val, 1);
+                    } else if (type.equals("WORD")) {
+                        int val = Integer.parseInt(valStr);
+                        if (refine) scanner.refineInt(val, 2);
+                        else scanner.searchInt(val, 2);
+                    } else if (type.equals("DOUBLE")) {
+                        double val = Double.parseDouble(valStr);
+                        if (refine) scanner.refineDouble(val);
+                        else scanner.searchDouble(val);
+                    } else if (type.equals("QWORD")) {
+                        long val = Long.parseLong(valStr);
+                        if (refine) scanner.refineLong(val);
+                        else scanner.searchLong(val);
+                    } else if (type.equals("XOR")) {
+                        int val = Integer.parseInt(valStr);
+                        int key = 0;
+                        if (valStr.contains(":")) {
+                            String[] parts = valStr.split(":");
+                            val = Integer.parseInt(parts[0]);
+                            key = Integer.parseInt(parts[1]);
+                        }
+                        if (refine) scanner.refineXor(val, key);
+                        else scanner.searchXor(val, key);
+                    }
+
+                    final int count = scanner.getResultCount();
+                    post(new Runnable() {
+                        public void run() {
+                            resultText.setText("Results: " + count);
+                            updateList();
+                        }
+                    });
+                } catch (final Exception e) {
+                    post(new Runnable() {
+                        public void run() {
+                            resultText.setText("Error: " + e.getMessage());
+                        }
+                    });
                 }
-                scanner.searchXor(val, key);
             }
-            // ... add other types
-
-            int count = scanner.getResultCount();
-            resultText.setText("Results: " + count);
-            updateList();
-        } catch (Exception e) {
-            resultText.setText("Error: " + e.getMessage());
-        }
+        }).start();
     }
 
     private void editAll() {
-        String valStr = inputSearch.getText().toString();
+        final String valStr = inputSearch.getText().toString();
         if (valStr.isEmpty()) return;
-        String type = typeSpinner.getSelectedItem().toString();
-        try {
-            if (type.equals("DWORD")) scanner.editAllInt(Integer.parseInt(valStr), 4);
-            else if (type.equals("FLOAT")) scanner.editAllFloat(Float.parseFloat(valStr));
-            else if (type.equals("BYTE")) scanner.editAllInt(Integer.parseInt(valStr), 1);
-            else if (type.equals("WORD")) scanner.editAllInt(Integer.parseInt(valStr), 2);
-            else if (type.equals("DOUBLE")) scanner.editAllDouble(Double.parseDouble(valStr));
-            else if (type.equals("QWORD")) scanner.editAllLong(Long.parseLong(valStr));
-            updateList();
-        } catch (Exception e) {}
+        final String type = typeSpinner.getSelectedItem().toString();
+
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    if (type.equals("DWORD")) scanner.editAllInt(Integer.parseInt(valStr), 4);
+                    else if (type.equals("FLOAT")) scanner.editAllFloat(Float.parseFloat(valStr));
+                    else if (type.equals("BYTE")) scanner.editAllInt(Integer.parseInt(valStr), 1);
+                    else if (type.equals("WORD")) scanner.editAllInt(Integer.parseInt(valStr), 2);
+                    else if (type.equals("DOUBLE")) scanner.editAllDouble(Double.parseDouble(valStr));
+                    else if (type.equals("QWORD")) scanner.editAllLong(Long.parseLong(valStr));
+
+                    post(new Runnable() {
+                        public void run() {
+                            updateList();
+                        }
+                    });
+                } catch (Exception e) {}
+            }
+        }).start();
     }
 
     private void updateList() {
         listLayout.removeAllViews();
         savedLayout.removeAllViews();
 
-        for (final long addr : savedList) {
+        for (int j = 0; j < savedList.size(); j++) {
+            final long addr = savedList.get(j);
             Button btnSaved = new Button(getContext());
             btnSaved.setText(String.format("Saved: 0x%X", addr));
             btnSaved.setOnClickListener(new View.OnClickListener() {
-                @Override
                 public void onClick(View v) {
                     editValue(addr);
                 }
@@ -238,7 +254,6 @@ public class MenuView extends LinearLayout {
             Button btnResult = new Button(getContext());
             btnResult.setText(String.format("0x%X", addr));
             btnResult.setOnClickListener(new View.OnClickListener() {
-                @Override
                 public void onClick(View v) {
                     editValue(addr);
                 }
@@ -248,7 +263,6 @@ public class MenuView extends LinearLayout {
             Button btnSave = new Button(getContext());
             btnSave.setText("S");
             btnSave.setOnClickListener(new View.OnClickListener() {
-                @Override
                 public void onClick(View v) {
                     if (!savedList.contains(addr)) {
                         savedList.add(addr);

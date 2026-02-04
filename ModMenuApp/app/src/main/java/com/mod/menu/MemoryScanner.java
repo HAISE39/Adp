@@ -17,6 +17,7 @@ public class MemoryScanner {
     public native void searchDouble(double value);
     public native void searchLong(long value);
     public native void searchXor(int value, int key);
+    public native void refineXor(int value, int key);
 
     public native void refineInt(int value, int type);
     public native void refineFloat(float value);

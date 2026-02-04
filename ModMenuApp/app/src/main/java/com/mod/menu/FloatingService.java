@@ -34,10 +34,17 @@ public class FloatingService extends Service {
         floatingView = new ImageView(this);
         ((ImageView)floatingView).setImageResource(android.R.drawable.ic_menu_info_details);
 
+        int layoutType;
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            layoutType = 2038; // TYPE_APPLICATION_OVERLAY
+        } else {
+            layoutType = 2002; // TYPE_PHONE
+        }
+
         params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                layoutType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
 
@@ -50,7 +57,6 @@ public class FloatingService extends Service {
         // Menu View
         MenuView mv = new MenuView(this);
         mv.setOnHideListener(new Runnable() {
-            @Override
             public void run() {
                 floatingView.setVisibility(View.VISIBLE);
             }
@@ -61,7 +67,7 @@ public class FloatingService extends Service {
         menuParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                layoutType,
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT);
         menuParams.gravity = Gravity.CENTER;
@@ -74,7 +80,6 @@ public class FloatingService extends Service {
             private float initialTouchX;
             private float initialTouchY;
 
-            @Override
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
